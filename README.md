@@ -48,6 +48,33 @@
 | 事件时间轴 | `/timeline` | 按日分组 + 事件侧栏（分类/地区/关联簇/代表稿） |
 | 日报 | `/daily` | 后端渲染 Markdown 预览，Markdown/CSV 导出，主编发布 |
 
+## 2.1 按信源重抽正文（batch re-extraction）
+
+信源抽取规则升级后，旧抓取页仍停留在旧结果。信源台账每行新增「重抽」按钮，以**信源**为单位
+发起一批正文重抽，批次结果在同一处给出「成功 / 失败 / 人工校正跳过」三档数量。
+
+- **入口**：`POST /reextract/batches {"source_id": N}`（`admin` / `analyst`，`viewer` 403）；
+  查询 `GET /reextract/batches?source_id=N`、`GET /reextract/batches/{id}`；
+  续跑 `POST /reextract/batches/{id}/retry`。
+- **幂等**：`request_key = source:{id}:rule:{签名}`，签名覆盖 `EXTRACT_SCORE_DIVISOR /
+  EXTRACT_MIN_BODY_CHARS` 与信源的 `extract_rule_status`。同一规则下重复发起复用同一批次，
+  不新增任务；规则变化才开新批次。同一批次重复查询/重复任务投递不会新增去重任务或簇。
+- **人工校正保护**：`articles.extractor=manual` 或 `corrected_by` 非空的稿件在批次内记为
+  `skipped_manual`，正文与置信度不被覆盖；会话中排队/在跑的项在人工保存时也会立即转为
+  `skipped_manual`。
+- **失败可见 + 断点续跑**：每条抓取记录一行 `reextract_items`（`pending / running /
+  succeeded / failed / skipped_manual`），失败项落 `error_note` 并保留在批次中。批次逐项提交，
+  中断后 `retry` 只重跑 `pending / failed / 中断在 running` 的项，`attempt_count` 累加，
+  `cursor_raw_item_id` 记录断点；没有可续跑项时不会重复投递任务。
+- **完成后再去重**：批次结束后自动发起一次 `dedup_runs`（`dedup_run_id`），复用进行中的 run；
+  簇按代表稿原地更新，`confirmed/split` 状态保留。代表稿变化时优先沿用成员重叠最多的旧簇
+  （cluster.id 与事件关联不变）；旧簇确被删除时，事件置空并写 `audit_logs`
+  （`action=dedup.cluster_replaced`）记录去向，已有确认的簇与事件关联可追溯。
+- **页面可见**：信源台账的批次面板给出三档计数、正文变化数、断点与去重 run；簇审查与日报页
+  顶部展示「本批重抽」横幅（`last_reextract`），包含失败数与重新去重后的簇/疑似边数字。
+- **迁移**：`backend/migrations/versions/20261112_0002_reextract.py` 只新增
+  `reextract_batches` / `reextract_items` 两张表，不改旧表。
+
 ## 3. 两个核心算法（Python 真算并落库，前端不硬编码）
 
 ### 算法 A：正文密度抽取 `backend/src/services/readability.py`
@@ -143,9 +170,9 @@ gb-563/
 │   └── src/
 │       ├── config/             # settings / database / celery_app
 │       ├── constants/          # roles / enums / error_codes / messages
-│       ├── models/             # user, source, raw_item, article, cluster(+member/suspect), dedup_run, event, audit_log
+│       ├── models/             # user, source, raw_item, article, cluster(+member/suspect), dedup_run, reextract, event, audit_log
 │       ├── schemas/            # pydantic 请求/响应
-│       ├── services/           # 业务 + readability.py + dedup.py + 抽取/去重编排
+│       ├── services/           # 业务 + readability.py + dedup.py + 抽取/去重/重抽编排
 │       ├── controllers/        # 路由控制器（薄层）
 │       ├── routes/             # APIRouter（/api 与无前缀两套挂载）
 │       ├── middlewares/        # request_context / auth(JWT+RBAC) / rate_limit
@@ -156,7 +183,7 @@ gb-563/
     ├── Dockerfile / nginx.conf # /api 反代 + SPA 回落
     └── src/
         ├── api/ stores/ types/ constants/ utils/ hooks/
-        ├── components/common/  # AppShell / BodyDiffPanel / SimilarityMeter / StampBadge
+        ├── components/common/  # AppShell / BodyDiffPanel / SimilarityMeter / StampBadge / ReextractPanel
         ├── pages/              # Login / Sources / RawItems / Clusters / Timeline / Daily
         └── router/
 ```
@@ -181,7 +208,7 @@ gb-563/
 | 枚举组 | 后端 | 前端 |
 |---|---|---|
 | 角色 `admin/analyst/viewer` + 权限矩阵 | `backend/src/constants/roles.py` | `frontend/src/constants/roles.ts` |
-| 业务状态：信源类型 `media/government/selfmedia`、原文状态 `new/parsed/failed`、抽取器 `readability/fallback/manual`、簇状态 `auto/confirmed/split`、去重任务状态 `queued/running/succeeded/failed`、事件分类 `政策/产业/民生/财经` | `backend/src/constants/enums.py` | `frontend/src/constants/enums.ts` |
+| 业务状态：信源类型 `media/government/selfmedia`、原文状态 `new/parsed/failed`、抽取器 `readability/fallback/manual`、簇状态 `auto/confirmed/split`、去重任务状态 `queued/running/succeeded/failed`、重抽批次状态 `queued/running/succeeded/failed/partial`、重抽条目状态 `pending/running/succeeded/failed/skipped_manual`、事件分类 `政策/产业/民生/财经` | `backend/src/constants/enums.py` | `frontend/src/constants/enums.ts` |
 
 > 前端 `constants/enums.ts` 里的 `LOW_CONFIDENCE_THRESHOLD / DEDUP_SIM_THRESHOLD /
 > DEDUP_SUSPECT_THRESHOLD` 只用于展示（阈值刻度、低置信标红），判定一律以后端为准。

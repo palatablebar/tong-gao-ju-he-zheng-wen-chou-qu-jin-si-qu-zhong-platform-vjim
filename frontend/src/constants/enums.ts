@@ -30,6 +30,22 @@ export const DEDUP_STATUS_LABELS: Record<string, string> = {
   failed: '失败',
 }
 
+export const REEXTRACT_BATCH_STATUS_LABELS: Record<string, string> = {
+  queued: '排队中',
+  running: '重抽中',
+  succeeded: '已完成',
+  failed: '失败',
+  partial: '部分失败',
+}
+
+export const REEXTRACT_ITEM_STATUS_LABELS: Record<string, string> = {
+  pending: '待重抽',
+  running: '重抽中',
+  succeeded: '已重抽',
+  failed: '重抽失败',
+  skipped_manual: '人工校正（跳过）',
+}
+
 export const EVENT_CATEGORIES = ['政策', '产业', '民生', '财经'] as const
 
 export const LOW_CONFIDENCE_THRESHOLD = 0.4

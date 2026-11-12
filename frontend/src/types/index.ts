@@ -172,6 +172,63 @@ export interface ClusterListResponse {
   total_members: number
   run: DedupRun | null
   suspect_edges: SuspectEdge[]
+  last_reextract: ReextractBatch | null
+  reextract_chain: ReextractBatch | null
+}
+
+export type ReextractItemStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'skipped_manual'
+
+export interface ReextractItem {
+  id: number
+  batch_id: number
+  raw_item_id: number
+  article_id: number | null
+  title: string
+  source_name: string
+  status: ReextractItemStatus
+  status_label: string
+  body_changed: boolean
+  before_extractor: string
+  before_confidence: number
+  after_extractor: string
+  after_confidence: number
+  error_note: string
+  processed_at: string | null
+}
+
+export type ReextractBatchStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'partial'
+
+export interface ReextractBatch {
+  id: number
+  source_id: number
+  source_name: string
+  rule_signature: string
+  status: ReextractBatchStatus
+  status_label: string
+  total_count: number
+  succeeded_count: number
+  failed_count: number
+  skipped_count: number
+  pending_count: number
+  body_changed_count: number
+  attempt_count: number
+  cursor_raw_item_id: number | null
+  dedup_run_id: number | null
+  dedup_run: DedupRun | null
+  dedup_pending: boolean
+  triggered_by: string
+  error: string
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+  last_processed_at: string | null
+  deduplicated?: boolean
+  items?: ReextractItem[]
+}
+
+export interface ReextractListResponse {
+  items: ReextractBatch[]
+  latest: ReextractBatch | null
 }
 
 export interface EventItem {
@@ -206,6 +263,7 @@ export interface DailyReport {
   }
   events: EventItem[]
   markdown: string
+  last_reextract?: ReextractBatch | null
 }
 
 export interface Overview {
@@ -227,6 +285,7 @@ export interface Overview {
     suspect_edge_count: number
     duplicate_rate: number
   } | null
+  last_reextract?: ReextractBatch | null
 }
 
 export interface AuditLog {

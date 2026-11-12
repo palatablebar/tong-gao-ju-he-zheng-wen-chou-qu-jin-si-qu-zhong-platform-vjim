@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from src.config.settings import settings
 from src.constants.enums import ClusterStatus
 from src.models import Article, Cluster, ClusterMember, SuspectedEdge
-from src.services import audit_service, dedup_service
+from src.services import audit_service, dedup_service, reextract_service
 from src.services.dedup import _representative
 from src.utils.errors import bad_request, not_found
 from src.utils.serializers import cluster_out
@@ -105,6 +105,10 @@ def list_clusters(db: Session, status: str | None = None, q: str | None = None) 
         "total_members": members_total,
         "run": dedup_service.dedup_run_out(run) if run else None,
         "suspect_edges": suspect_edges,
+        "last_reextract": reextract_service.last_reextract_summary(db),
+        "reextract_chain": reextract_service.pending_chain(
+            db, reextract_service.latest_active(db)
+        ),
     }
 
 

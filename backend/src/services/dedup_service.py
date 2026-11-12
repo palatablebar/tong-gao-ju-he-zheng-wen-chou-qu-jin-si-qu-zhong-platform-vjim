@@ -23,6 +23,14 @@ from src.utils.serializers import dedup_run_out
 from src.utils.textnorm import chinese_char_count
 
 
+class _SystemActor:
+    email = "system:dedup"
+    role = "system"
+
+
+_SYSTEM_ACTOR = _SystemActor()
+
+
 def article_doc(article: Article) -> ArticleDoc:
     raw = article.raw_item
     source = raw.source
@@ -68,6 +76,11 @@ def create_run(db: Session, payload, actor) -> dict:
     )
     if active is not None:
         raise AppError(ErrorCode.CONFLICT, DEDUP_BUSY)
+    return request_run(db, payload, actor)
+
+
+def request_run(db: Session, payload, actor) -> dict:
+    """Create + queue a dedup run without the busy guard (callers handle dedup themselves)."""
     run = DedupRun(
         status=DedupRunStatus.QUEUED.value,
         threshold=payload.threshold,
@@ -154,21 +167,64 @@ def _write_snapshot(run: DedupRun, result) -> str:
 def _persist(db: Session, run: DedupRun, result, docs: list[ArticleDoc]) -> dict:
     by_id = {doc.article_id: doc for doc in docs}
     new_rep_ids = {cluster.representative_id for cluster in result.clusters}
+    member_sets = {spec.representative_id: set(spec.members) for spec in result.clusters}
 
     old_clusters = db.scalars(select(Cluster).order_by(Cluster.id)).all()
     old_by_rep = {cluster.representative_article_id: cluster for cluster in old_clusters}
-    cluster_id_map: dict[int, int] = {}
-    for cluster in old_clusters:
-        if cluster.representative_article_id not in new_rep_ids:
-            db.query(Event).filter(Event.cluster_id == cluster.id).update({Event.cluster_id: None})
-            db.query(ClusterMember).filter(ClusterMember.cluster_id == cluster.id).delete()
-            db.delete(cluster)
+    cluster_id_map: dict[int, int] = {
+        rep: cluster.id for rep, cluster in old_by_rep.items() if rep is not None
+    }
+
+    # 代表稿相同：原地更新。代表稿变化：沿用成员重叠最多的旧簇（保留 cluster.id、
+    # confirmed/split 状态与 Event.cluster_id 关联），保证重抽后可追溯。
+    orphaned = [
+        cluster
+        for cluster in old_clusters
+        if cluster.representative_article_id not in new_rep_ids
+    ]
+    claimed: dict[int, int] = {}  # old_cluster_id -> new representative id
+    cluster_for_spec: dict[int, Cluster] = {}
+    for spec in result.clusters:
+        if spec.representative_id in old_by_rep:
+            cluster_for_spec[spec.representative_id] = old_by_rep[spec.representative_id]
+            continue
+        best_cluster, best_overlap = None, 0
+        for cluster in orphaned:
+            if cluster.id in claimed:
+                continue
+            overlap = len(
+                {member.article_id for member in cluster.members}
+                & member_sets[spec.representative_id]
+            )
+            if overlap > best_overlap:
+                best_cluster, best_overlap = cluster, overlap
+        if best_cluster is not None and best_overlap > 0:
+            claimed[best_cluster.id] = spec.representative_id
+            cluster_for_spec[spec.representative_id] = best_cluster
+        else:
+            cluster_for_spec[spec.representative_id] = None
+
+    for cluster in orphaned:
+        if cluster.id in claimed:
+            continue
+        db.query(Event).filter(Event.cluster_id == cluster.id).update({Event.cluster_id: None})
+        db.query(ClusterMember).filter(ClusterMember.cluster_id == cluster.id).delete()
+        db.delete(cluster)
     db.flush()
 
     for spec in result.clusters:
-        cluster = old_by_rep.get(spec.representative_id)
+        cluster = cluster_for_spec.get(spec.representative_id)
         if cluster is None:
-            cluster = Cluster(run_id=run.id, status=ClusterStatus.AUTO.value)
+            # 真正新增的簇：NOT NULL 字段在 flush 前填好，避免先插入空标签。
+            cluster = Cluster(
+                run_id=run.id,
+                status=ClusterStatus.AUTO.value,
+                topic_label=spec.topic_label,
+                representative_article_id=spec.representative_id,
+                member_count=len(spec.members),
+                mean_similarity=spec.mean_similarity,
+                first_seen_at=spec.first_seen_at,
+            )
             db.add(cluster)
             db.flush()
         else:
@@ -192,6 +248,32 @@ def _persist(db: Session, run: DedupRun, result, docs: list[ArticleDoc]) -> dict
                 )
             )
     db.flush()
+
+    # 旧簇无法复用而被删除时，把「事件关联去向」写入审计：确认过的簇与事件仍可追溯。
+    removed_clusters = []
+    for cluster in orphaned:
+        if cluster.id in claimed:
+            continue
+        old_events = [
+            event.id
+            for event in db.scalars(select(Event).where(Event.cluster_id == cluster.id)).all()
+        ]
+        removed_clusters.append(
+            {
+                "cluster_id": cluster.id,
+                "representative_article_id": cluster.representative_article_id,
+                "unlinked_event_ids": old_events,
+            }
+        )
+    if removed_clusters:
+        audit_service.record(
+            db,
+            _SYSTEM_ACTOR,
+            action="dedup.cluster_replaced",
+            target_type="dedup_run",
+            target_id=run.id,
+            detail={"removed_clusters": removed_clusters},
+        )
 
     db.query(SuspectedEdge).delete()
     for edge in result.suspect_edges:
@@ -218,6 +300,7 @@ def _persist(db: Session, run: DedupRun, result, docs: list[ArticleDoc]) -> dict
         "duplicate_rate": result.duplicate_rate,
         "cross_source_count": cross_source,
         "candidate_pair_count": result.candidate_pairs,
+        "event_relinks": [],
     }
 
 
@@ -234,8 +317,18 @@ def execute_run(run_id: int) -> None:
         docs = build_docs(db)
         result = run_dedup(docs, _run_params(run))
         stats = _persist(db, run, result, docs)
+        relinks = stats.pop("event_relinks", [])
         for key, value in stats.items():
             setattr(run, key, value)
+        if relinks:
+            audit_service.record(
+                db,
+                _SYSTEM_ACTOR,
+                action="dedup.event_relinked",
+                target_type="dedup_run",
+                target_id=run.id,
+                detail={"relinks": relinks},
+            )
         run.snapshot_path = _write_snapshot(run, result)
         run.status = DedupRunStatus.SUCCEEDED.value
         run.finished_at = datetime.now(timezone.utc)

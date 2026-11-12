@@ -6,7 +6,7 @@
         <h2 class="page-head__title">信源台账</h2>
         <p class="page-head__lede">
           20 个同行站 + 8 个政务号里已接入 5 个核心信源。抽取规则状态决定该站正文的兜底策略，
-          权重参与代表稿打分（0.2 权重项）。
+          权重参与代表稿打分（0.2 权重项）；规则升级后可按信源发起整批正文重抽。
         </p>
       </div>
       <div class="page-head__aside">
@@ -56,7 +56,7 @@
           <span>抽取规则</span>
           <span>原文 / 正文 / 低置信</span>
           <span>最近抓取</span>
-          <span v-if="canWriteSource">操作</span>
+          <span>操作</span>
         </div>
         <div v-for="source in sources" :key="source.id" class="src-row" data-testid="source-row">
           <div>
@@ -84,14 +84,33 @@
             </b>
           </span>
           <span class="mono" style="color: var(--ink-faint)">{{ formatDateTime(source.last_fetched_at) }}</span>
-          <span v-if="canWriteSource">
-            <button class="btn btn--ghost" type="button" style="padding: 0.2rem 0.6rem" @click="toggle(source)">
+          <span class="src-actions">
+            <button
+              v-if="canWriteSource"
+              class="btn btn--ghost"
+              type="button"
+              style="padding: 0.2rem 0.6rem"
+              @click="toggle(source)"
+            >
               {{ source.enabled ? '停用' : '启用' }}
+            </button>
+            <button
+              class="btn btn--ghost"
+              type="button"
+              style="padding: 0.2rem 0.6rem"
+              :data-testid="`reextract-${source.id}`"
+              :title="canReextract ? '按该信源重抽正文' : '只读角色无权重抽（后端 403）'"
+              :disabled="!canReextract || reextractStore.busy"
+              @click="runReextract(source.id)"
+            >
+              {{ reextractStore.busy && selectedSourceId === source.id ? '重抽中…' : '重抽' }}
             </button>
           </span>
         </div>
       </div>
     </div>
+
+    <ReextractPanel :sources="sources" :selected-source-id="selectedSourceId" />
 
     <form v-if="canWriteSource" class="panel" style="margin-top: var(--space-5)" @submit.prevent="create">
       <div class="panel__head">
@@ -132,16 +151,20 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useSourceStore } from '../stores/sources'
+import { useReextractStore } from '../stores/reextract'
 import { usePermission } from '../hooks/usePermission'
 import { useToast } from '../hooks/useToast'
 import { formatDateTime } from '../utils/format'
 import type { Source } from '../types'
+import ReextractPanel from '../components/common/ReextractPanel.vue'
 
 const store = useSourceStore()
-const { canWriteSource } = usePermission()
+const reextractStore = useReextractStore()
+const { canWriteSource, canReextract } = usePermission()
 const { push, failure } = useToast()
 
 const sources = computed(() => store.items)
+const selectedSourceId = ref<number | null>(null)
 const submitting = ref(false)
 const form = reactive({ name: '', homepage: '', type: 'media', weight: 3 })
 const enabledCount = computed(() => sources.value.filter((item) => item.enabled).length)
@@ -156,6 +179,20 @@ function sumBy(key: 'raw_count' | 'article_count' | 'low_confidence_count'): num
 onMounted(() => {
   void store.load()
 })
+
+async function runReextract(sourceId: number) {
+  selectedSourceId.value = sourceId
+  const result = await reextractStore.request(sourceId)
+  if (!result) {
+    failure(reextractStore.error || '重抽失败')
+    return
+  }
+  push(
+    `重抽完成（${result.source_name}）：成功 ${result.succeeded_count} · 失败 ${result.failed_count} · ` +
+      `人工校正跳过 ${result.skipped_count}；已重新去重`,
+  )
+  await store.load()
+}
 
 async function toggle(source: Source) {
   try {
@@ -184,7 +221,7 @@ async function create() {
 <style scoped>
 .src-row {
   display: grid;
-  grid-template-columns: 1.5fr 0.8fr 0.7fr 0.9fr 1.2fr 1.1fr 0.6fr;
+  grid-template-columns: 1.5fr 0.8fr 0.7fr 0.9fr 1.2fr 1.1fr 1.1fr;
   gap: var(--space-3);
   align-items: center;
   padding: var(--space-3) 0;
@@ -224,5 +261,11 @@ async function create() {
 
 .counts {
   color: var(--ink-soft);
+}
+
+.src-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
 }
 </style>

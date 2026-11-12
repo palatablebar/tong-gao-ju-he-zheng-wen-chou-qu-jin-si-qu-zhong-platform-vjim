@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.models import Cluster, Event, SuspectedEdge
-from src.services import audit_service
+from src.services import audit_service, reextract_service
 from src.utils.serializers import event_out
 
 
@@ -29,6 +29,7 @@ def _build(db: Session, date_text: str) -> dict:
     return {
         "date": date_text,
         "events": payload,
+        "last_reextract": reextract_service.last_reextract_summary(db),
         "summary": {
             "date": date_text,
             "event_count": len(payload),
@@ -49,6 +50,20 @@ def _markdown(report: dict) -> str:
         f"{summary['cluster_count']} 簇；疑似边 {summary['suspect_count']} 条；"
         f"重复率 {summary['duplicate_rate'] * 100:.1f}%（(篇数-簇数)/篇数）。",
         "",
+    ]
+    batch = report.get("last_reextract")
+    if batch:
+        dedup_text = "未触发"
+        if batch.get("dedup_run_id"):
+            run = batch.get("dedup_run") or {}
+            dedup_text = f"#{batch['dedup_run_id']} {run.get('status_label', '排队中')}"
+        lines += [
+            f"> 本批重抽（{batch['source_name']}）：成功 {batch['succeeded_count']} · "
+            f"失败 {batch['failed_count']} · 人工校正跳过 {batch['skipped_count']}；"
+            f"正文有变化 {batch['body_changed_count']}；重抽后重新去重 {dedup_text}。",
+            "",
+        ]
+    lines += [
         "| # | 事件 | 分类 | 地区 | 代表稿 | 信源 | 转载 | 相似度 |",
         "|---|---|---|---|---|---|---|---|",
     ]

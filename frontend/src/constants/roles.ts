@@ -14,6 +14,7 @@ export const PERMISSIONS: Record<string, RoleKey[]> = {
   'cluster:review': ['admin', 'analyst'],
   'cluster:split': ['admin'],
   'dedup:run': ['admin', 'analyst'],
+  'reextract:run': ['admin', 'analyst'],
   'event:write': ['admin', 'analyst'],
   'daily:export': ['admin', 'analyst', 'viewer'],
   'audit:read': ['admin'],

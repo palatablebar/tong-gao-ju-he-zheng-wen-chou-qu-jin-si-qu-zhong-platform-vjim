@@ -22,6 +22,7 @@ PERMISSIONS = {
     "cluster:review": {Role.ADMIN.value, Role.ANALYST.value},
     "cluster:split": {Role.ADMIN.value},
     "dedup:run": {Role.ADMIN.value, Role.ANALYST.value},
+    "reextract:run": {Role.ADMIN.value, Role.ANALYST.value},
     "event:write": {Role.ADMIN.value, Role.ANALYST.value},
     "daily:export": {Role.ADMIN.value, Role.ANALYST.value, Role.VIEWER.value},
     "audit:read": {Role.ADMIN.value},

@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.models import Article, Cluster, DedupRun, Event, RawItem, Source, SuspectedEdge
-from src.services import dedup_service
+from src.services import dedup_service, reextract_service
 
 
 def get_overview(db: Session) -> dict:
@@ -43,4 +43,5 @@ def get_overview(db: Session) -> dict:
         "members": members,
         "duplicate_rate": duplicate_rate,
         "last_run": last_run,
+        "last_reextract": reextract_service.last_reextract_summary(db),
     }

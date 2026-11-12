@@ -46,6 +46,22 @@
     <div v-if="store.error" class="forbidden">{{ store.error }}</div>
 
     <template v-if="report">
+      <div v-if="report.last_reextract" class="reextract-banner" data-testid="daily-reextract">
+        <span class="reextract-banner__title mono">本批重抽</span>
+        <span class="mono">
+          {{ report.last_reextract.source_name }} ·
+          {{ report.last_reextract.status_label }} · 成功
+          <b style="color: var(--moss)">{{ report.last_reextract.succeeded_count }}</b> · 失败
+          <b style="color: var(--vermilion)">{{ report.last_reextract.failed_count }}</b> · 人工校正跳过
+          <b style="color: var(--ochre)">{{ report.last_reextract.skipped_count }}</b> ·
+          正文有变化 {{ report.last_reextract.body_changed_count }}
+        </span>
+        <span v-if="report.last_reextract.dedup_run_id" class="mono" style="color: var(--ink-faint)">
+          重抽后重新去重 #{{ report.last_reextract.dedup_run_id }} ·
+          簇 {{ report.last_reextract.dedup_run?.cluster_count ?? '—' }} ·
+          疑似边 {{ report.last_reextract.dedup_run?.suspect_edge_count ?? '—' }}
+        </span>
+      </div>
       <div class="stat-strip">
         <div class="stat">
           <div class="stat__value">{{ report.summary.event_count }}<span>条</span></div>

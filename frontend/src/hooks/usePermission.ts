@@ -18,6 +18,7 @@ export function usePermission() {
   const canSplitCluster = computed(() => can('cluster:split'))
   const canWriteSource = computed(() => can('source:write'))
   const canExportDaily = computed(() => can('daily:export'))
+  const canReextract = computed(() => can('reextract:run'))
 
   return {
     can,
@@ -27,5 +28,6 @@ export function usePermission() {
     canSplitCluster,
     canWriteSource,
     canExportDaily,
+    canReextract,
   }
 }

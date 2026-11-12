@@ -134,6 +134,9 @@ def _ensure_raws_and_articles(db: Session, sources: dict[str, Source]) -> dict[s
                 error_note=spec["error_note"],
             )
             db.add(raw)
+        elif not raw.raw_html and spec["html"]:
+            # 旧库的采集失败页没有快照：补上快照，按信源重抽才有可重算的原始页。
+            raw.raw_html = spec["html"]
     db.commit()
     return article_ids
 

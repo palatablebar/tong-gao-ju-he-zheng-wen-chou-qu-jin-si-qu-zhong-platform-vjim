@@ -7,13 +7,14 @@ import {
   splitCluster,
 } from '../api/clusters'
 import { fetchRun, startDedupRun } from '../api/dedup'
-import type { Cluster, ClusterDetail, DedupRun, SuspectEdge } from '../types'
+import type { Cluster, ClusterDetail, DedupRun, ReextractBatch, SuspectEdge } from '../types'
 
 export const useClusterStore = defineStore('clusters', () => {
   const items = ref<Cluster[]>([])
   const detail = ref<ClusterDetail | null>(null)
   const run = ref<DedupRun | null>(null)
   const suspectEdges = ref<SuspectEdge[]>([])
+  const lastReextract = ref<ReextractBatch | null>(null)
   const loading = ref(false)
   const detailLoading = ref(false)
   const runBusy = ref(false)
@@ -28,6 +29,7 @@ export const useClusterStore = defineStore('clusters', () => {
       items.value = response.items
       run.value = response.run
       suspectEdges.value = response.suspect_edges
+      lastReextract.value = response.last_reextract || response.reextract_chain
     } catch (exc) {
       error.value = exc instanceof Error ? exc.message : String(exc)
     } finally {
@@ -87,6 +89,7 @@ export const useClusterStore = defineStore('clusters', () => {
     detail,
     run,
     suspectEdges,
+    lastReextract,
     loading,
     detailLoading,
     runBusy,

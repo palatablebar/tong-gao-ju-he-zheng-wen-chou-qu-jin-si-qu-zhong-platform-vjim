@@ -5,6 +5,8 @@ from src.constants.enums import (
     EVENT_CATEGORY_VALUES,
     EXTRACTOR_LABELS,
     RAW_STATUS_LABELS,
+    REEXTRACT_BATCH_STATUS_LABELS,
+    REEXTRACT_ITEM_STATUS_LABELS,
     SOURCE_TYPE_LABELS,
 )
 from src.constants.roles import ROLE_LABELS
@@ -177,4 +179,55 @@ def dedup_run_out(run) -> dict:
         "started_at": run.started_at,
         "finished_at": run.finished_at,
         "created_at": run.created_at,
+    }
+
+
+def reextract_batch_out(batch, dedup_run=None) -> dict:
+    """Batch counters are always the persisted totals (no silent failures)."""
+    return {
+        "id": batch.id,
+        "source_id": batch.source_id,
+        "source_name": batch.source.name if batch.source else "",
+        "rule_signature": batch.rule_signature,
+        "status": batch.status,
+        "status_label": REEXTRACT_BATCH_STATUS_LABELS.get(batch.status, batch.status),
+        "total_count": batch.total_count,
+        "succeeded_count": batch.succeeded_count,
+        "failed_count": batch.failed_count,
+        "skipped_count": batch.skipped_count,
+        "pending_count": batch.pending_count,
+        "body_changed_count": batch.body_changed_count,
+        "attempt_count": batch.attempt_count,
+        "cursor_raw_item_id": batch.cursor_raw_item_id,
+        "dedup_run_id": batch.dedup_run_id,
+        "dedup_run": dedup_run,
+        "dedup_pending": bool(batch.dedup_run_id) and dedup_run is not None
+        and dedup_run.get("status") in ("queued", "running"),
+        "triggered_by": batch.triggered_by,
+        "error": batch.error,
+        "created_at": batch.created_at,
+        "started_at": batch.started_at,
+        "finished_at": batch.finished_at,
+        "last_processed_at": batch.last_processed_at,
+    }
+
+
+def reextract_item_out(item, raw=None) -> dict:
+    raw = raw or getattr(item, "raw_item", None)
+    return {
+        "id": item.id,
+        "batch_id": item.batch_id,
+        "raw_item_id": item.raw_item_id,
+        "article_id": item.article_id,
+        "title": raw.title if raw else "",
+        "source_name": raw.source.name if raw and raw.source else "",
+        "status": item.status,
+        "status_label": REEXTRACT_ITEM_STATUS_LABELS.get(item.status, item.status),
+        "body_changed": item.body_changed,
+        "before_extractor": item.before_extractor,
+        "before_confidence": round(item.before_confidence or 0.0, 4),
+        "after_extractor": item.after_extractor,
+        "after_confidence": round(item.after_confidence or 0.0, 4),
+        "error_note": item.error_note,
+        "processed_at": item.processed_at,
     }

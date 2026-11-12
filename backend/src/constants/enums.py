@@ -77,3 +77,37 @@ class EventCategory(str, Enum):
 
 
 EVENT_CATEGORY_VALUES = [c.value for c in EventCategory]
+
+
+class ReextractBatchStatus(str, Enum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    PARTIAL = "partial"
+
+
+REEXTRACT_BATCH_STATUS_LABELS = {
+    ReextractBatchStatus.QUEUED.value: "排队中",
+    ReextractBatchStatus.RUNNING.value: "重抽中",
+    ReextractBatchStatus.SUCCEEDED.value: "已完成",
+    ReextractBatchStatus.FAILED.value: "失败",
+    ReextractBatchStatus.PARTIAL.value: "部分失败",
+}
+
+
+class ReextractItemStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    SKIPPED_MANUAL = "skipped_manual"
+
+
+REEXTRACT_ITEM_STATUS_LABELS = {
+    ReextractItemStatus.PENDING.value: "待重抽",
+    ReextractItemStatus.RUNNING.value: "重抽中",
+    ReextractItemStatus.SUCCEEDED.value: "已重抽",
+    ReextractItemStatus.FAILED.value: "重抽失败",
+    ReextractItemStatus.SKIPPED_MANUAL.value: "人工校正（跳过）",
+}

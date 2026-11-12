@@ -7,7 +7,7 @@ celery_app = Celery(
     "dedupwire",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["src.tasks.dedup_task", "src.tasks.heartbeat"],
+    include=["src.tasks.dedup_task", "src.tasks.heartbeat", "src.tasks.reextract_task"],
 )
 
 celery_app.conf.update(

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.constants.enums import ExtractorMode
-from src.models import Article, RawItem
+from src.models import Article, RawItem, ReextractItem
 from src.services import audit_service
 from src.utils.errors import not_found
 from src.utils.serializers import article_out
@@ -33,6 +33,11 @@ def correct_body(db: Session, article_id: int, payload, actor) -> dict:
     article.extract_confidence = max(0.9, round(article.extract_confidence, 2))
     article.corrected_by = actor.email
     article.corrected_at = datetime.now(timezone.utc)
+    # 人工校正优先：任何仍在排队的重抽项都改为 skipped，避免手动保存后被自动覆盖。
+    db.query(ReextractItem).filter(
+        ReextractItem.raw_item_id == article.raw_item_id,
+        ReextractItem.status.in_(["pending", "running"]),
+    ).update({ReextractItem.status: "skipped_manual"}, synchronize_session=False)
     audit_service.record(
         db,
         actor,

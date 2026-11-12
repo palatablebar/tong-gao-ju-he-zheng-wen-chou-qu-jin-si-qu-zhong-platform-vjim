@@ -43,6 +43,27 @@
       </div>
     </div>
 
+    <div v-if="reextractBatch" class="reextract-banner" data-testid="clusters-reextract">
+      <span class="reextract-banner__title mono">本批重抽</span>
+      <span class="mono">
+        {{ reextractBatch.source_name }} · {{ reextractBatch.status_label }} · 成功
+        <b style="color: var(--moss)">{{ reextractBatch.succeeded_count }}</b> · 失败
+        <b style="color: var(--vermilion)">{{ reextractBatch.failed_count }}</b> · 人工校正跳过
+        <b style="color: var(--ochre)">{{ reextractBatch.skipped_count }}</b>
+      </span>
+      <span v-if="reextractBatch.dedup_run_id" class="mono" style="color: var(--ink-faint)">
+        重新去重 #{{ reextractBatch.dedup_run_id }} ·
+        {{ reextractBatch.dedup_run?.status_label || '排队中' }}
+        <template v-if="reextractBatch.dedup_run">
+          · {{ reextractBatch.dedup_run.cluster_count }} 簇 /
+          疑似边 {{ reextractBatch.dedup_run.suspect_edge_count }}
+        </template>
+      </span>
+      <span v-if="reextractBatch.failed_count" class="mono" style="color: var(--vermilion)">
+        失败项可在信源台账重试续跑，不会从批次中消失
+      </span>
+    </div>
+
     <div class="filter-bar" style="align-items: center">
       <button
         class="btn btn--seal seal-button"
@@ -252,6 +273,7 @@ const { canRunDedup, canReviewCluster, canSplitCluster } = usePermission()
 const { push, failure } = useToast()
 
 const run = computed(() => store.run)
+const reextractBatch = computed(() => store.lastReextract)
 const detail = computed(() => store.detail)
 const leftArticleId = ref<number | null>(null)
 const rightArticleId = ref<number | null>(null)

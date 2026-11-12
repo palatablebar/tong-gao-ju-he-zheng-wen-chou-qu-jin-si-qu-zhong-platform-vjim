@@ -233,6 +233,24 @@
   margin-top: 0.25rem;
 }
 
+.reextract-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--vermilion);
+  background: var(--paper-soft);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  font-size: var(--step--1);
+}
+
+.reextract-banner__title {
+  letter-spacing: 0.12em;
+  color: var(--vermilion);
+}
+
 .split-layout {
   display: grid;
   grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.6fr);

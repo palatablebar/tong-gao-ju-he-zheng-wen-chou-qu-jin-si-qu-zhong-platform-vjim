@@ -5,6 +5,7 @@ from src.models.cluster import Cluster, ClusterMember, SuspectedEdge
 from src.models.dedup_run import DedupRun
 from src.models.event import Event
 from src.models.raw_item import RawItem
+from src.models.reextract import ReextractBatch, ReextractItem
 from src.models.source import Source
 from src.models.user import User
 
@@ -16,6 +17,8 @@ __all__ = [
     "DedupRun",
     "Event",
     "RawItem",
+    "ReextractBatch",
+    "ReextractItem",
     "Source",
     "SuspectedEdge",
     "User",

@@ -18,6 +18,7 @@ class DailyReportOut(BaseModel):
     summary: DailySummary
     events: list[EventOut]
     markdown: str
+    last_reextract: dict | None = None
 
 
 class PublishRequest(BaseModel):
