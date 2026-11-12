@@ -1,0 +1,141 @@
+name: dedupwire
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-dedupwire}-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-dedupwire}
+      POSTGRES_USER: ${DB_USER:-dedupwire}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dedupwire_pw_2026}
+    ports:
+      - "${DB_PORT:-17736}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-dedupwire} -d ${DB_NAME:-dedupwire}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-dedupwire}-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ${COMPOSE_PROJECT_NAME:-dedupwire}-backend:local
+    container_name: ${COMPOSE_PROJECT_NAME:-dedupwire}-backend
+    environment:
+      APP_ENV: docker
+      RUN_MODE: api
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-dedupwire}
+      DB_USER: ${DB_USER:-dedupwire}
+      DB_PASSWORD: ${DB_PASSWORD:-dedupwire_pw_2026}
+      JWT_SECRET: ${JWT_SECRET:-dedupwire-jwt-secret-change-me-2026}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      SEED_DEMO: ${SEED_DEMO:-true}
+      VAR_DIR: /app/var
+      EXTRACT_SCORE_DIVISOR: ${EXTRACT_SCORE_DIVISOR:-45}
+      EXTRACT_MIN_BODY_CHARS: ${EXTRACT_MIN_BODY_CHARS:-120}
+      DEDUP_SIM_THRESHOLD: ${DEDUP_SIM_THRESHOLD:-0.72}
+      DEDUP_SUSPECT_THRESHOLD: ${DEDUP_SUSPECT_THRESHOLD:-0.55}
+      DEDUP_NUM_PERM: ${DEDUP_NUM_PERM:-128}
+      DEDUP_BANDS: ${DEDUP_BANDS:-32}
+      DEDUP_SHINGLE_SIZE: ${DEDUP_SHINGLE_SIZE:-4}
+      DEDUP_RATE_LIMIT_PER_MINUTE: ${DEDUP_RATE_LIMIT_PER_MINUTE:-10}
+    volumes:
+      - app_var:/app/var
+    ports:
+      - "${BACKEND_PORT:-19236}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 45s
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ${COMPOSE_PROJECT_NAME:-dedupwire}-backend:local
+    container_name: ${COMPOSE_PROJECT_NAME:-dedupwire}-worker
+    environment:
+      APP_ENV: docker
+      RUN_MODE: worker
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-dedupwire}
+      DB_USER: ${DB_USER:-dedupwire}
+      DB_PASSWORD: ${DB_PASSWORD:-dedupwire_pw_2026}
+      JWT_SECRET: ${JWT_SECRET:-dedupwire-jwt-secret-change-me-2026}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      VAR_DIR: /app/var
+      DEDUP_SIM_THRESHOLD: ${DEDUP_SIM_THRESHOLD:-0.72}
+      DEDUP_SUSPECT_THRESHOLD: ${DEDUP_SUSPECT_THRESHOLD:-0.55}
+      DEDUP_NUM_PERM: ${DEDUP_NUM_PERM:-128}
+      DEDUP_BANDS: ${DEDUP_BANDS:-32}
+      DEDUP_SHINGLE_SIZE: ${DEDUP_SHINGLE_SIZE:-4}
+    volumes:
+      - app_var:/app/var
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python /app/scripts/worker_healthcheck.py"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: ${COMPOSE_PROJECT_NAME:-dedupwire}-frontend:local
+    container_name: ${COMPOSE_PROJECT_NAME:-dedupwire}-frontend
+    ports:
+      - "${FRONTEND_PORT:-18236}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  redis_data:
+  app_var:

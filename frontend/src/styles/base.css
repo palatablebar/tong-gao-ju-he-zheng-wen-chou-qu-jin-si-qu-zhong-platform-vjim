@@ -1,0 +1,261 @@
+@import '@fontsource/playfair-display/400.css';
+@import '@fontsource/playfair-display/600.css';
+@import '@fontsource/playfair-display/900.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at 18% 6%, var(--paper-soft), var(--paper) 55%, var(--paper-deep));
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: var(--vermilion);
+  color: var(--paper-soft);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+p {
+  margin: 0 0 var(--space-3);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.rule {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  margin: var(--space-4) 0;
+}
+
+.rule--strong {
+  border-top: 3px double var(--rule-strong);
+}
+
+.rule--vert {
+  border-left: 1px solid var(--rule);
+}
+
+.btn {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--ink);
+  background: var(--paper-soft);
+  color: var(--ink);
+  transition: transform 220ms var(--ease-out), background 220ms var(--ease-out),
+    color 220ms var(--ease-out);
+}
+
+.btn:hover {
+  background: var(--ink);
+  color: var(--paper-soft);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn--seal {
+  border-color: var(--vermilion);
+  color: var(--vermilion);
+}
+
+.btn--seal:hover {
+  background: var(--vermilion);
+  color: var(--paper-soft);
+}
+
+.btn--ghost {
+  border-color: var(--rule-strong);
+  color: var(--ink-soft);
+  background: transparent;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.field label {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.field input,
+.field select,
+.field textarea {
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-soft);
+  padding: 0.55rem 0.65rem;
+  border-radius: 0;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: 2px solid var(--vermilion);
+  outline-offset: 1px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid var(--rule-strong);
+  padding: 0.1rem 0.42rem;
+  color: var(--ink-soft);
+}
+
+.tag--seal {
+  border-color: var(--vermilion);
+  color: var(--vermilion);
+}
+
+.tag--moss {
+  border-color: var(--moss);
+  color: var(--moss);
+}
+
+.tag--ochre {
+  border-color: var(--ochre);
+  color: oklch(0.5 0.1 70);
+}
+
+.page-enter-active {
+  animation: pageIn 320ms var(--ease-out);
+}
+
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast-stack {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: 60;
+}
+
+.toast {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  background: var(--ink);
+  color: var(--paper-soft);
+  padding: 0.6rem 0.9rem;
+  border-left: 3px solid var(--vermilion);
+  animation: toastIn 260ms var(--ease-out);
+}
+
+.toast--error {
+  border-left-color: var(--ochre);
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.empty {
+  border: 1px dashed var(--rule-strong);
+  padding: var(--space-5);
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.loading-bar {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--vermilion), transparent);
+  animation: loadingSlide 1.1s linear infinite;
+}
+
+@keyframes loadingSlide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}

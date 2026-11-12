@@ -1,0 +1,38 @@
+/* 视觉方向：报社铅字排版间 —— 纸色/油墨黑/朱红印章，细线分隔 */
+:root {
+  --paper: oklch(0.935 0.016 84);
+  --paper-deep: oklch(0.9 0.02 82);
+  --paper-soft: oklch(0.96 0.012 86);
+  --ink: oklch(0.21 0.012 72);
+  --ink-soft: oklch(0.38 0.014 74);
+  --ink-faint: oklch(0.52 0.012 76);
+  --rule: oklch(0.7 0.018 78);
+  --rule-strong: oklch(0.52 0.02 74);
+  --vermilion: oklch(0.51 0.19 28);
+  --vermilion-soft: oklch(0.62 0.14 32);
+  --moss: oklch(0.46 0.07 145);
+  --ochre: oklch(0.63 0.11 78);
+  --slate: oklch(0.42 0.02 250);
+
+  --font-display: 'Playfair Display', 'Songti SC', 'Noto Serif SC', 'STSong', serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', 'Menlo', 'Courier New', monospace;
+  --font-body: 'Songti SC', 'Noto Serif SC', 'STSong', Georgia, serif;
+
+  --step--1: clamp(0.72rem, 0.7rem + 0.1vw, 0.78rem);
+  --step-0: clamp(0.86rem, 0.82rem + 0.2vw, 0.95rem);
+  --step-1: clamp(1.02rem, 0.95rem + 0.35vw, 1.18rem);
+  --step-2: clamp(1.25rem, 1.1rem + 0.7vw, 1.6rem);
+  --step-3: clamp(1.6rem, 1.3rem + 1.4vw, 2.4rem);
+  --step-4: clamp(2.3rem, 1.6rem + 3vw, 4rem);
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4rem;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
